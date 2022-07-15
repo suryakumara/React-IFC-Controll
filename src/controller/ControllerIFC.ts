@@ -38,6 +38,7 @@ export class ControllerIFC {
   pickHelper: PickHelper;
   pickPosition: Vector2;
   pickedObject: Mesh | null;
+  pickedObjectPosition: Vector3 | undefined;
   listObjectLoaded: Array<Object3D>;
 
   constructor(canvasRef: HTMLCanvasElement) {
@@ -98,6 +99,7 @@ export class ControllerIFC {
     this.pickHelper = new PickHelper();
     this.pickPosition = new Vector2();
     this.pickedObject = null;
+    this.pickedObjectPosition = undefined;
 
     this.onChangeSize();
     this.update();
@@ -173,16 +175,9 @@ export class ControllerIFC {
     });
   };
 
-  getObjectPosition = (): Vector3 | undefined => {
-    if (this.pickedObject) {
-      return this.pickedObject.position;
-    }
-    return undefined;
-  };
-
   handleTransformControl = () => {
     this.transformControl.addEventListener("dragging-changed", (event) => {
-      this.getObjectPosition();
+      this.pickedObjectPosition = this.pickedObject?.position;
       this.control.enabled = !event.value;
     });
   };

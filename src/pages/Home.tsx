@@ -17,6 +17,12 @@ const ContainerInfo = styled("div")`
   z-index: 1;
   left: 1rem;
   top: 2rem;
+  width: 100%;
+
+  & > button {
+    margin: 10px;
+    width: 152px;
+  }
 `;
 
 const Container = styled("div")`
@@ -27,7 +33,11 @@ const Container = styled("div")`
 const Home = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const controllerIFCRef = useRef<ControllerIFC>();
-  const [selectedPosition, setSelectedPosition] = useState<Vector3>();
+  const [selectedPosition, setSelectedPosition] = useState<{
+    x?: number;
+    y?: number;
+    z?: number;
+  }>();
   const [file, setFile] = useState<File>();
 
   useEffect(() => {
@@ -43,9 +53,9 @@ const Home = () => {
   };
 
   const handleGetPosition = () => {
-    if (controllerIFCRef.current?.getObjectPosition()) {
-      setSelectedPosition(controllerIFCRef.current?.getObjectPosition());
-    }
+    const newVal = controllerIFCRef.current?.pickedObjectPosition;
+    console.log(newVal);
+    setSelectedPosition({ x: newVal?.x, y: newVal?.y, z: newVal?.z });
   };
 
   return (
@@ -54,20 +64,38 @@ const Home = () => {
       <ContainerInfo>
         <label htmlFor="x">
           x
-          <input type="text" defaultValue={selectedPosition ? selectedPosition.x : ""} name="x" />
+          <input
+            type="text"
+            defaultValue={selectedPosition ? selectedPosition.x : ""}
+            name="x"
+            readOnly
+            disabled
+          />
         </label>
 
         <label htmlFor="x">
           y
-          <input type="text" defaultValue={selectedPosition ? selectedPosition.y : ""} name="y" />
+          <input
+            type="text"
+            defaultValue={selectedPosition ? selectedPosition.y : ""}
+            name="y"
+            readOnly
+            disabled
+          />
         </label>
 
         <label htmlFor="x">
           z
-          <input type="text" defaultValue={selectedPosition ? selectedPosition.z : ""} name="z" />
+          <input
+            type="text"
+            defaultValue={selectedPosition ? selectedPosition.z : ""}
+            name="z"
+            readOnly
+            disabled
+          />
         </label>
 
-        <button onClick={handleGetPosition}>ok</button>
+        <button onClick={handleGetPosition}>Save</button>
         <p>Press R to Rotate Object, G: to moving Object</p>
       </ContainerInfo>
       <Canvas id="three-canvas" ref={canvasRef}></Canvas>

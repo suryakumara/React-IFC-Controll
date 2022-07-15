@@ -11,6 +11,7 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
+  Euler,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls";
@@ -39,6 +40,7 @@ export class ControllerIFC {
   pickPosition: Vector2;
   pickedObject: Mesh | null;
   pickedObjectPosition: Vector3 | undefined;
+  pickedObjectRotation: Euler | undefined;
   listObjectLoaded: Array<Object3D>;
 
   constructor(canvasRef: HTMLCanvasElement) {
@@ -100,6 +102,7 @@ export class ControllerIFC {
     this.pickPosition = new Vector2();
     this.pickedObject = null;
     this.pickedObjectPosition = undefined;
+    this.pickedObjectRotation = undefined;
 
     this.onChangeSize();
     this.update();
@@ -178,6 +181,8 @@ export class ControllerIFC {
   handleTransformControl = () => {
     this.transformControl.addEventListener("dragging-changed", (event) => {
       this.pickedObjectPosition = this.pickedObject?.position;
+      this.pickedObjectRotation = this.pickedObject?.rotation;
+
       this.control.enabled = !event.value;
     });
   };

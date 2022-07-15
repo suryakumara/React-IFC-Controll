@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { styled } from "@mui/material";
 import React, { useEffect, useRef, useState } from "react";
-import { Vector3 } from "three";
+import { MathUtils, Vector3 } from "three";
 import { ControllerIFC } from "../controller/ControllerIFC";
 import "./Home.css";
 
@@ -38,6 +38,11 @@ const Home = () => {
     y?: number;
     z?: number;
   }>();
+  const [selectedRotation, setSelectedRotation] = useState<{
+    x?: number;
+    y?: number;
+    z?: number;
+  }>();
   const [file, setFile] = useState<File>();
 
   useEffect(() => {
@@ -54,7 +59,13 @@ const Home = () => {
 
   const handleGetPosition = () => {
     const newVal = controllerIFCRef.current?.pickedObjectPosition;
-    console.log(newVal);
+    const newRot = controllerIFCRef.current?.pickedObjectRotation;
+    const newRotation = {
+      x: MathUtils.radToDeg(newRot?.x ?? 0),
+      y: MathUtils.radToDeg(newRot?.y ?? 0),
+      z: MathUtils.radToDeg(newRot?.z ?? 0),
+    };
+    setSelectedRotation(newRotation);
     setSelectedPosition({ x: newVal?.x, y: newVal?.y, z: newVal?.z });
   };
 
@@ -90,6 +101,16 @@ const Home = () => {
             type="text"
             defaultValue={selectedPosition ? selectedPosition.z : ""}
             name="z"
+            readOnly
+            disabled
+          />
+        </label>
+        <label htmlFor="rotation-z">
+          r
+          <input
+            type="text"
+            defaultValue={selectedRotation ? selectedRotation.z : ""}
+            name="rotation-z"
             readOnly
             disabled
           />

@@ -1,0 +1,29 @@
+
+
+#three-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    outline: none;
+  }
+  
+  #file-input {
+    z-index: 1;
+    position: absolute;
+  }
+
+  
+  
+  .checkboxes {
+    position: absolute;
+    left: 1rem;
+    top: 4rem;
+  }
+  
+  #position-panel {
+    position: absolute;
+    z-index: 1;
+    left: 1rem;
+    top: 2rem;
+    background-color: red;
+  }

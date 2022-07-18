@@ -2,6 +2,7 @@ import {
   AmbientLight,
   BoxGeometry,
   DirectionalLight,
+  Euler,
   GridHelper,
   Mesh,
   MeshBasicMaterial,
@@ -11,18 +12,20 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
-  Euler,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { IFCLoader } from "three/examples/jsm/loaders/IFCLoader";
+import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer";
+import { Controller } from "./Controller";
+import { Model } from "./Model";
 import { PickHelper } from "./PickHelper";
 
 export class ControllerIFC {
   scene: Scene;
   grid: any;
-  camera: any;
+  camera: PerspectiveCamera;
   threeCanvas: any;
   renderer: WebGLRenderer;
   size: {
@@ -41,7 +44,10 @@ export class ControllerIFC {
   pickedObject: Mesh | null;
   pickedObjectPosition: Vector3 | undefined;
   pickedObjectRotation: Euler | undefined;
+  pickedObjectData: { dasId: string };
   listObjectLoaded: Array<Object3D>;
+  panelControl: Controller;
+  labelControl: CSS2DRenderer;
 
   constructor(canvasRef: HTMLCanvasElement) {
     this.size = {
@@ -58,6 +64,8 @@ export class ControllerIFC {
     this.camera.position.y = 13;
     this.camera.position.x = 8;
 
+    this.camera.layers.enableAll();
+
     const lightColor = 0xffffff;
 
     const ambientLight = new AmbientLight(lightColor, 0.5);
@@ -71,16 +79,12 @@ export class ControllerIFC {
 
     this.renderer = new WebGLRenderer({
       canvas: canvasRef,
+      antialias: true,
       alpha: true,
     });
+
     this.renderer.setSize(this.size.width, this.size.height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-    // ======================= control ================== //
-    this.control = new OrbitControls(this.camera, canvasRef);
-    this.control.target.set(-2, 0, 0);
-    this.transformControl = new TransformControls(this.camera, canvasRef);
-    this.transformControl.size = 0.5;
 
     // ======================= ifcLoader ================== //
     this.ifcLoader = new IFCLoader();
@@ -103,19 +107,31 @@ export class ControllerIFC {
     this.pickedObject = null;
     this.pickedObjectPosition = undefined;
     this.pickedObjectRotation = undefined;
+    this.pickedObjectData = { dasId: "" };
+
+    // ======================= controller ===================== //
+    this.panelControl = new Controller(this.renderer);
+    this.labelControl = new CSS2DRenderer();
+
+    // ======================= control ================== //
+    this.control = new OrbitControls(this.camera, this.labelControl.domElement);
+    this.control.target.set(-2, 0, 0);
+    this.transformControl = new TransformControls(this.camera, this.labelControl.domElement);
+    this.transformControl.size = 0.5;
 
     this.onChangeSize();
     this.update();
     this.transformControlMode();
     this.handleTransformControl();
 
-    this.loadGLTFAOA();
-    this.loadGLTFBeacon();
-    this.loadGLTFHuman();
+    const model = new Model(this.scene, this.gltfLoader, this.listObjectLoaded, this.labelControl);
+    model.loadGLTFAOA();
+    model.loadGLTFBeacon();
+    model.loadGLTFHuman();
 
     // ======================= pick event ===================== //
-    document.addEventListener("mousemove", this.onHoverObject);
-    document.addEventListener("click", this.onClickObject);
+    document.addEventListener("mousemove", this.onHoverObject, false);
+    document.addEventListener("click", this.onClickObject, false);
   }
 
   onHoverObject = (event: MouseEvent) => {
@@ -126,7 +142,6 @@ export class ControllerIFC {
   };
 
   onClickObject = (event: MouseEvent) => {
-    event.preventDefault();
     this.pickPosition.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.pickPosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
     this.pickHelper.onSelected(this.pickPosition, this.camera, this.listObjectLoaded);
@@ -164,6 +179,7 @@ export class ControllerIFC {
 
   update = () => {
     this.renderer.render(this.scene, this.camera);
+    this.labelControl.render(this.scene, this.camera);
 
     requestAnimationFrame(this.update);
   };
@@ -182,34 +198,32 @@ export class ControllerIFC {
     this.transformControl.addEventListener("dragging-changed", (event) => {
       this.pickedObjectPosition = this.pickedObject?.position;
       this.pickedObjectRotation = this.pickedObject?.rotation;
-
+      this.pickedObjectData.dasId = this.pickedObject?.userData.dasId;
       this.control.enabled = !event.value;
     });
   };
 
-  loadGLTFBeacon = () => {
-    this.gltfLoader.load("/assets/beacon/beacon_fix.gltf", (gltf) => {
-      const beacon = gltf.scene;
-      beacon.position.x = 7;
-      this.listObjectLoaded.push(beacon);
-      this.scene.add(beacon);
-    });
+  setDarkMode = () => {
+    this.panelControl.setDarkMode();
   };
 
-  loadGLTFAOA = () => {
-    this.gltfLoader.load("/assets/aoa/aoa.gltf", (gltf) => {
-      const aoa = gltf.scene;
-      this.listObjectLoaded.push(aoa);
-      this.scene.add(aoa);
-    });
+  setLightMode = () => {
+    this.panelControl.setLightMode();
   };
 
-  loadGLTFHuman = () => {
-    this.gltfLoader.load("/assets/human3.gltf", (gltf) => {
-      const human = gltf.scene;
-      human.position.x = -7;
-      this.listObjectLoaded.push(human);
-      this.scene.add(human);
-    });
+  setEnableAOA = () => {
+    this.camera.layers.enable(1);
+  };
+
+  setDisableAOA = () => {
+    this.camera.layers.disable(1);
+  };
+
+  setEnableBeacon = () => {
+    this.camera.layers.enable(2);
+  };
+
+  setDisableBeacon = () => {
+    this.camera.layers.disable(2);
   };
 }

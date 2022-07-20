@@ -1,20 +1,28 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { Group, Object3D } from "three";
+import { Group, Object3D, PerspectiveCamera, Scene } from "three";
+import { IFCLoader } from "web-ifc-three/IFCLoader";
+import { Tween, Easing } from "@tweenjs/tween.js";
 
 export class Model {
-  scene: any;
+  scene: Scene;
+  camera: PerspectiveCamera;
   gltfLoader: GLTFLoader;
+  ifcLoader: IFCLoader;
   listObjectLoaded: any;
   labelControl: CSS2DRenderer;
   humanScene: Group | undefined;
+  tweenControl: Tween<{ x: number; y: number; z: number }>;
 
-  constructor(scene, gltfLoader, listObjectLoaded, labelControl) {
+  constructor(scene, camera, gltfLoader, listObjectLoaded, labelControl, ifcLoader, tweenControl) {
     this.scene = scene;
+    this.camera = camera;
     this.gltfLoader = gltfLoader;
+    this.ifcLoader = ifcLoader;
     this.listObjectLoaded = listObjectLoaded;
     this.labelControl = labelControl;
+    this.tweenControl = tweenControl;
     this.humanScene = undefined;
   }
 
@@ -62,13 +70,42 @@ export class Model {
     });
   };
 
+  loadIFCModel = async () => {
+    await this.ifcLoader.ifcManager.setWasmPath("../../public/wasm/");
+    this.ifcLoader.load("/assets/01.ifc", async (ifc) => {
+      console.log(ifc);
+      this.scene.add(ifc);
+    });
+  };
+
   addLabel = (model?: Group | Object3D, labelText?: string, labelLayer?: number) => {
     if (model) {
       const label = document.createElement("div");
       label.className = "label-3d-aoa";
       label.textContent = labelText ?? "";
-      label.style.textShadow = "2px 2px 6px #78DC00";
+      label.style.textShadow = "2px 2px 6px #FAFAFA";
       label.style.cursor = "pointer";
+      const coordsCam = {
+        x: this.camera.position.x,
+        y: this.camera.position.y,
+        z: this.camera.position.z,
+      };
+      label.addEventListener("pointerdown", (e) => {
+        this.tweenControl
+          .to(
+            {
+              x: model.position.x,
+              y: model.position.y,
+              z: model.position.z,
+            },
+            1500
+          )
+          .easing(Easing.Quadratic.Out)
+          .onUpdate(() => {
+            this.camera.position.set(coordsCam.x, coordsCam.y, coordsCam.z);
+          })
+          .start();
+      });
       const objectLabel = new CSS2DObject(label);
       objectLabel.position.set(0, 3, 0);
       model.add(objectLabel);

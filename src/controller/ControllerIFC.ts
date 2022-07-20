@@ -13,11 +13,14 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
+import { FlyControls } from "three/examples/jsm/controls/FlyControls";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls";
+
+import { Easing, Tween, update } from "@tweenjs/tween.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { IFCLoader } from "three/examples/jsm/loaders/IFCLoader";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer";
+import { IFCLoader } from "web-ifc-three/IFCLoader";
 import { Controller } from "./Controller";
 import { Model } from "./Model";
 import { PickHelper } from "./PickHelper";
@@ -39,6 +42,7 @@ export class ControllerIFC {
   ifcLoader: IFCLoader;
   gltfLoader: GLTFLoader;
   transformControl: TransformControls;
+  flyControl?: FlyControls;
   pickHelper: PickHelper;
   pickPosition: Vector2;
   pickedObject: Mesh | null;
@@ -48,6 +52,7 @@ export class ControllerIFC {
   listObjectLoaded: Array<Object3D>;
   panelControl: Controller;
   labelControl: CSS2DRenderer;
+  tweenControl: Tween<{ x: number; y: number; z: number }>;
 
   constructor(canvasRef: HTMLCanvasElement) {
     this.size = {
@@ -88,7 +93,7 @@ export class ControllerIFC {
 
     // ======================= ifcLoader ================== //
     this.ifcLoader = new IFCLoader();
-    this.ifcLoader.ifcManager.setWasmPath("../assets/");
+    this.ifcLoader.ifcManager.setWasmPath("../../");
 
     // ======================= gltfLoader ================== //
     this.gltfLoader = new GLTFLoader();
@@ -112,6 +117,13 @@ export class ControllerIFC {
     // ======================= controller ===================== //
     this.panelControl = new Controller(this.renderer);
     this.labelControl = new CSS2DRenderer();
+    this.flyControl = undefined;
+
+    this.tweenControl = new Tween({
+      x: this.camera.position.x,
+      y: this.camera.position.y,
+      z: this.camera.position.z,
+    });
 
     // ======================= control ================== //
     this.control = new OrbitControls(this.camera, this.labelControl.domElement);
@@ -124,7 +136,15 @@ export class ControllerIFC {
     this.transformControlMode();
     this.handleTransformControl();
 
-    const model = new Model(this.scene, this.gltfLoader, this.listObjectLoaded, this.labelControl);
+    const model = new Model(
+      this.scene,
+      this.camera,
+      this.gltfLoader,
+      this.listObjectLoaded,
+      this.labelControl,
+      this.ifcLoader,
+      this.tweenControl
+    );
     model.loadGLTFAOA();
     model.loadGLTFBeacon();
     model.loadGLTFHuman();
@@ -135,18 +155,63 @@ export class ControllerIFC {
   }
 
   onHoverObject = (event: MouseEvent) => {
-    event.preventDefault();
     this.pickPosition.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.pickPosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
-    this.pickHelper.onSelected(this.pickPosition, this.camera, this.listObjectLoaded);
+    this.pickHelper.onSelected(
+      this.pickPosition,
+      this.camera,
+      this.listObjectLoaded,
+      this.tweenControl
+    );
   };
 
   onClickObject = (event: MouseEvent) => {
     this.pickPosition.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.pickPosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
-    this.pickHelper.onSelected(this.pickPosition, this.camera, this.listObjectLoaded);
+    this.pickHelper.onSelected(
+      this.pickPosition,
+      this.camera,
+      this.listObjectLoaded,
+      this.tweenControl
+    );
     this.pickedObject = this.pickHelper.pickedObject as Mesh;
+
     this.addTransformControl();
+    this.updateClick();
+  };
+
+  updateClick = () => {
+    if (this.pickedObject) {
+      this.control.enabled = false;
+      const coord = {
+        x: this.camera.position.x,
+        y: this.camera.position.y,
+        z: this.camera.position.z,
+      };
+
+      new Tween(coord)
+        .to({
+          x: this.pickedObject.position.x,
+          y: this.pickedObject.position.y + 2,
+          z: this.pickedObject.position.z,
+        })
+        .easing(Easing.Quadratic.Out)
+        .onUpdate(() => {
+          this.camera.position.set(coord.x, coord.y, coord.z);
+        })
+        .onComplete(() => {
+          this.control.enabled = true;
+
+          this.control.update();
+        })
+        .start();
+
+      // const controlCoord = {
+      //   x: this.control.target.x,
+      //   y: this.control.target.y,
+      //   z: this.control.target.z,
+      // };
+    }
   };
 
   addTransformControl = () => {
@@ -171,8 +236,9 @@ export class ControllerIFC {
     });
   };
 
-  loadIFCModel = () => {
-    this.ifcLoader.load("/assets/01.ifc", async (ifcModel) => {
+  loadIFCModel = async (file: File) => {
+    const ifcURL = URL.createObjectURL(file);
+    await this.ifcLoader.load(ifcURL, async (ifcModel) => {
       this.scene.add(ifcModel);
     });
   };
@@ -180,6 +246,7 @@ export class ControllerIFC {
   update = () => {
     this.renderer.render(this.scene, this.camera);
     this.labelControl.render(this.scene, this.camera);
+    update();
 
     requestAnimationFrame(this.update);
   };

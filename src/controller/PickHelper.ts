@@ -1,4 +1,16 @@
-import { Camera, Group, Material, Mesh, MeshBasicMaterial, Object3D, Raycaster } from "three";
+import { Tween } from "@tweenjs/tween.js";
+import {
+  Box3,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+  PerspectiveCamera,
+  Raycaster,
+  Vector3,
+} from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 export class PickHelper {
   raycaster: Raycaster;
@@ -16,11 +28,12 @@ export class PickHelper {
       x: number;
       y: number;
     },
-    camera: Camera,
-    objects: Array<Object3D>
+    camera: PerspectiveCamera,
+    objects: Array<Object3D>,
+    tweenControl: Tween<{ x: number; y: number; z: number }>
   ) {
     this.unSubscribe();
-    this.onSubScribe(normalizedPosition, camera, objects);
+    this.onSubScribe(normalizedPosition, camera, objects, tweenControl);
   }
 
   unSubscribe = () => {
@@ -42,14 +55,16 @@ export class PickHelper {
       x: number;
       y: number;
     },
-    camera: Camera,
-    objects: Array<Object3D>
+    camera: PerspectiveCamera,
+    objects: Array<Object3D>,
+    tweenControl: Tween<{ x: number; y: number; z: number }>
   ) => {
     this.raycaster.setFromCamera(normalizedPosition, camera);
     const intersectedObjects = this.raycaster.intersectObjects(objects, true);
 
     if (intersectedObjects.length > 0) {
       this.pickedObject = intersectedObjects[0].object.parent;
+
       if (this.pickedObject instanceof Group) {
         this.pickedObjectMaterial = this.pickedObject.children.map((obj) => {
           if (obj instanceof Mesh) {
@@ -64,5 +79,36 @@ export class PickHelper {
         });
       }
     }
+  };
+
+  fitToView = (camera: PerspectiveCamera, control: OrbitControls, obj: Group, fitRatio = 1.2) => {
+    const box = new Box3();
+    box.expandByObject(obj);
+
+    const size = box.getSize(new Vector3());
+    const center = box.getCenter(new Vector3());
+
+    const maxSize = Math.max(size.x, size.y, size.z);
+    const fitHeightDistance = maxSize / ((2 * Math.atan(Math.PI * camera.fov)) / 360);
+    const fitWIdthDistance = fitHeightDistance / camera.aspect;
+
+    const distance = fitRatio * Math.max(fitHeightDistance, fitWIdthDistance);
+
+    const direction = control.target
+      .clone()
+      .sub(camera.position)
+      .normalize()
+      .multiplyScalar(distance);
+
+    control.maxDistance = distance * 10;
+    control.target.copy(center);
+
+    camera.near = distance / 100;
+    camera.far = distance * 100;
+    camera.updateProjectionMatrix();
+
+    camera.position.copy(control.target).sub(direction);
+
+    control.update();
   };
 }

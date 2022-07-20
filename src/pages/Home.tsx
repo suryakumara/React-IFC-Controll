@@ -43,6 +43,11 @@ const ContainerInfo = styled("div")`
     display: flex;
     flex-direction: column;
   }
+  & > label {
+  }
+  & > input[type="text"] {
+    color: red;
+  }
 `;
 
 interface ContainerProps {
@@ -135,12 +140,22 @@ const Home = () => {
     }
   };
 
+  const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("test");
+    const file = e.target.files?.[0];
+    if (file) {
+      controllerIFCRef.current?.loadIFCModel(file);
+    }
+  };
   return (
     <Container isDarkMode={checked.isDarkMode}>
       <ContainerInfo>
-        <Typography sx={{ textAlign: "end", color: "inherit" }}>
+        <input type="file" onChange={handleLoad} style={{ zIndex: "3" }} />
+
+        <Typography sx={{ textAlign: "center", color: "inherit" }}>
           Press R to Rotate Object, G: to moving Object
         </Typography>
+
         <FormControlLabel
           label="ID"
           sx={{ marginBottom: "10px", color: "inherit" }}
@@ -152,6 +167,7 @@ const Home = () => {
               disabled
               placeholder="dasId"
               sx={{ color: "inherit", borderColor: "white" }}
+              InputLabelProps={{ style: { color: checked.isDarkMode ? "white" : "black" } }}
             />
           }
         />
@@ -253,9 +269,10 @@ const Home = () => {
         </div>
 
         <Button onClick={handleGetPosition} variant="contained">
-          Save
+          Get Data
         </Button>
       </ContainerInfo>
+
       <Container3D>
         <Canvas ref={canvasRef}></Canvas>
       </Container3D>
